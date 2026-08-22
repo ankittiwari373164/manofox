@@ -33,13 +33,13 @@ function slugify(title) {
 async function rewriteWithGroq({ title, snippet, category }) {
   if (!process.env.GROQ_API_KEY) return null;
   try {
-    const prompt = `You are a copywriter for Manofox, a digital marketing agency in New Delhi. Rewrite the following news item in your own words as a short blog post for the Manofox website. Do not copy sentences verbatim from the source. Keep it factual and neutral, written for a marketing-savvy business audience. Category: ${category}.
+    const prompt = `You are a copywriter for Manofox, a digital marketing agency in New Delhi. Write an original, in-depth blog post for the Manofox website based on the news item below. Do not copy sentences verbatim from the source — rewrite everything in your own words and add relevant context, implications for businesses, and practical takeaways. Keep it factual and neutral, written for a marketing-savvy business audience. Category: ${category}.
 
 Source headline: ${title}
 Source snippet: ${snippet}
 
 Respond ONLY with strict JSON, no markdown fences, no preamble:
-{"title": "a punchy rewritten headline under 90 characters", "summary": "a 1-2 sentence teaser under 200 characters", "content": "a 3-5 paragraph rewritten article, plain text, paragraphs separated by \\n\\n"}`;
+{"title": "a punchy rewritten headline under 90 characters", "summary": "a 1-2 sentence teaser under 200 characters", "content": "a well-developed 6-9 paragraph article (at least 500 words), plain text, paragraphs separated by \\n\\n"}`;
 
     const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -51,7 +51,7 @@ Respond ONLY with strict JSON, no markdown fences, no preamble:
         model: GROQ_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.6,
-        max_tokens: 900,
+        max_tokens: 2200,
       }),
     });
     if (!resp.ok) return null;
@@ -112,7 +112,10 @@ async function fetchAndStoreNews() {
         ]);
         if (existing.length) continue;
 
-        const rawTitle = (item.title || "Untitled").replace(/\s*-\s*[^-]+$/, "").trim();
+        const rawTitle = (item.title || "Untitled")
+          .replace(/\s*[-–—]\s*[^-–—]+$/, "")
+          .replace(new RegExp(`\\s{2,}\\S.*$`), "")
+          .trim();
         const rawSnippet = (item.contentSnippet || item.content || "").slice(0, 800);
         const sourceName = item.creator || (feed.title || "").replace("Google News", "").trim() || "News";
 
@@ -121,6 +124,11 @@ async function fetchAndStoreNews() {
           snippet: rawSnippet,
           category: topic.category,
         });
+        if (!rewritten) {
+          console.warn(
+            `[news] Groq rewrite unavailable for "${rawTitle}" — using raw RSS snippet. Check GROQ_API_KEY.`
+          );
+        }
         const image = await fetchUnsplashImage(topic.imageQuery);
 
         const title = rewritten?.title || rawTitle;
