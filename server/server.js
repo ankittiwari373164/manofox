@@ -5,7 +5,9 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const cron = require("node-cron");
 const pool = require("./db");
+const { fetchAndStoreNews } = require("./news");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -267,6 +269,128 @@ api.put(
   })
 );
 
+// ---------- blogs (public) ----------
+
+api.get(
+  "/blogs",
+  asyncHandler(async (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const [rows] = await pool.query(
+      "SELECT * FROM blogs WHERE status = 'published' ORDER BY published_at DESC LIMIT ?",
+      [limit]
+    );
+    res.json(rows);
+  })
+);
+
+api.get(
+  "/blogs/:slug",
+  asyncHandler(async (req, res) => {
+    const [rows] = await pool.query(
+      "SELECT * FROM blogs WHERE slug = ? AND status = 'published'",
+      [req.params.slug]
+    );
+    if (!rows.length) return res.status(404).json({ detail: "Post not found" });
+    res.json(rows[0]);
+  })
+);
+
+// ---------- blogs (admin) ----------
+
+api.get(
+  "/admin/blogs",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const [rows] = await pool.query("SELECT * FROM blogs ORDER BY created_at DESC LIMIT 300");
+    res.json(rows);
+  })
+);
+
+api.post(
+  "/admin/blogs",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { title, summary = "", content = "", image_url = "", category = "News", status = "published" } =
+      req.body || {};
+    if (!title || title.length < 3) return res.status(422).json({ detail: "Title is required" });
+    const slug =
+      title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "")
+        .slice(0, 180) +
+      "-" +
+      Date.now().toString(36).slice(-5);
+    const [result] = await pool.query(
+      `INSERT INTO blogs (title, slug, summary, content, image_url, category, status, is_automated)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+      [title.slice(0, 255), slug, summary, content, image_url, category.slice(0, 100), status]
+    );
+    res.status(201).json({ message: "Post created", id: result.insertId, slug });
+  })
+);
+
+api.put(
+  "/admin/blogs/:id",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const fields = ["title", "summary", "content", "image_url", "category", "status"];
+    const updates = [];
+    const values = [];
+    for (const f of fields) {
+      if (req.body && req.body[f] !== undefined) {
+        updates.push(`${f} = ?`);
+        values.push(req.body[f]);
+      }
+    }
+    if (!updates.length) return res.status(400).json({ detail: "No fields to update" });
+    values.push(req.params.id);
+    const [result] = await pool.query(`UPDATE blogs SET ${updates.join(", ")} WHERE id = ?`, values);
+    if (result.affectedRows === 0) return res.status(404).json({ detail: "Post not found" });
+    res.json({ message: "Post updated" });
+  })
+);
+
+api.delete(
+  "/admin/blogs/:id",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const [result] = await pool.query("DELETE FROM blogs WHERE id = ?", [req.params.id]);
+    if (result.affectedRows === 0) return res.status(404).json({ detail: "Post not found" });
+    res.json({ message: "Post deleted" });
+  })
+);
+
+api.post(
+  "/admin/blogs/fetch-news",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const result = await fetchAndStoreNews();
+    res.json({ message: `Fetched ${result.inserted} new post(s)`, ...result });
+  })
+);
+
+// ---------- newsletter (admin) ----------
+
+api.get(
+  "/admin/subscribers",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const [rows] = await pool.query("SELECT * FROM subscribers ORDER BY created_at DESC LIMIT 1000");
+    res.json(rows);
+  })
+);
+
+api.delete(
+  "/admin/subscribers/:id",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const [result] = await pool.query("DELETE FROM subscribers WHERE id = ?", [req.params.id]);
+    if (result.affectedRows === 0) return res.status(404).json({ detail: "Subscriber not found" });
+    res.json({ message: "Subscriber removed" });
+  })
+);
+
 app.use("/api", api);
 
 // generic API error handler
@@ -306,6 +430,17 @@ async function ensureAdmin() {
     }
   }
 }
+
+// Fetch trending news once a day at 6:00 AM server time.
+// Change the cron expression to run more/less often (e.g. "0 */6 * * *" for every 6 hours).
+cron.schedule("0 6 * * *", async () => {
+  try {
+    const result = await fetchAndStoreNews();
+    console.log(`[news-cron] Fetched ${result.inserted} new post(s)`, result.errors);
+  } catch (err) {
+    console.error("[news-cron] Failed:", err.message);
+  }
+});
 
 ensureAdmin()
   .catch((err) => console.error("Admin seed failed:", err.message))

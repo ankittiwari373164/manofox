@@ -35,6 +35,24 @@ CREATE TABLE IF NOT EXISTS subscribers (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS blogs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NOT NULL UNIQUE,
+  summary TEXT,
+  content TEXT,
+  image_url VARCHAR(1000),
+  source_url VARCHAR(1000),
+  source_name VARCHAR(150),
+  category VARCHAR(100) DEFAULT 'News',
+  status VARCHAR(20) NOT NULL DEFAULT 'published',
+  is_automated TINYINT(1) NOT NULL DEFAULT 0,
+  published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_blogs_status (status),
+  INDEX idx_blogs_published (published_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS site_content (
   id INT AUTO_INCREMENT PRIMARY KEY,
   content_key VARCHAR(50) NOT NULL UNIQUE DEFAULT 'site',

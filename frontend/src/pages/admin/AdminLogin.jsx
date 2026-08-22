@@ -33,7 +33,7 @@ export default function AdminLogin() {
         className="w-full max-w-md rounded-3xl bg-white p-10 shadow-2xl"
       >
         <div className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-fox font-display text-sm font-extrabold text-white">M</span>
+          <img src="/logo.png" alt="Manofox" className="h-9 w-9 rounded-full object-cover" />
           <span className="font-display text-xl font-extrabold tracking-tight text-obsidian">MANO<span className="text-fox">FOX</span></span>
         </div>
         <h1 className="mt-8 font-display text-3xl font-extrabold tracking-tight text-obsidian">Admin Panel</h1>

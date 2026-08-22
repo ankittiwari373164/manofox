@@ -13,7 +13,7 @@ export default function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mt-4 flex items-center justify-between rounded-full border border-black/5 bg-white/70 backdrop-blur-xl px-5 py-3 shadow-sm">
           <Link to="/" data-testid="nav-logo" className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-fox text-white font-display font-900 text-sm font-extrabold">M</span>
+            <img src="/logo.png" alt="Manofox" className="h-8 w-8 rounded-full object-cover" />
             <span className="font-display text-lg font-extrabold tracking-tight text-obsidian">
               MANO<span className="text-fox">FOX</span>
             </span>

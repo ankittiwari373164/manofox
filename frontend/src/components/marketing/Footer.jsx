@@ -31,7 +31,7 @@ export default function Footer() {
         <div className="grid gap-12 lg:grid-cols-12">
           <div className="lg:col-span-5">
             <div className="flex items-center gap-2">
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-fox font-display text-sm font-extrabold">M</span>
+              <img src="/logo.png" alt="Manofox" className="h-9 w-9 rounded-full object-cover" />
               <span className="font-display text-xl font-extrabold tracking-tight">MANO<span className="text-fox">FOX</span></span>
             </div>
             <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/60">

@@ -1,10 +1,12 @@
 import { Navigate, NavLink, Outlet, Link, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, FileText, ExternalLink, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Newspaper, Mail, ExternalLink, LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const NAV = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/admin/leads", label: "Leads", icon: Users },
+  { to: "/admin/blogs", label: "Blog", icon: Newspaper },
+  { to: "/admin/newsletter", label: "Newsletter", icon: Mail },
   { to: "/admin/content", label: "Site Content", icon: FileText },
 ];
 
@@ -30,7 +32,7 @@ export default function AdminLayout() {
     <div className="flex min-h-screen bg-secondary" data-testid="admin-layout">
       <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-black/5 bg-white">
         <div className="flex items-center gap-2 border-b border-black/5 px-6 py-5">
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-fox font-display text-sm font-extrabold text-white">M</span>
+          <img src="/logo.png" alt="Manofox" className="h-8 w-8 rounded-full object-cover" />
           <span className="font-display text-lg font-extrabold tracking-tight text-obsidian">MANO<span className="text-fox">FOX</span></span>
         </div>
         <nav className="flex-1 space-y-1 p-4" data-testid="admin-nav">
