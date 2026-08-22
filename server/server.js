@@ -399,6 +399,36 @@ app.use("/api", (err, req, res, next) => {
   res.status(500).json({ detail: "Internal server error" });
 });
 
+// ---------- sitemap ----------
+
+app.get(
+  "/sitemap.xml",
+  asyncHandler(async (req, res) => {
+    const origin = `${req.protocol}://${req.get("host")}`;
+    const staticPages = ["", "/services", "/about", "/portfolio", "/blog", "/contact"];
+    const [blogs] = await pool.query(
+      "SELECT slug, published_at FROM blogs WHERE status = 'published' ORDER BY published_at DESC LIMIT 1000"
+    );
+
+    const urls = [
+      ...staticPages.map((p) => `<url><loc>${origin}${p}</loc><changefreq>weekly</changefreq></url>`),
+      ...blogs.map(
+        (b) =>
+          `<url><loc>${origin}/blog/${b.slug}</loc><lastmod>${new Date(b.published_at)
+            .toISOString()
+            .slice(0, 10)}</lastmod><changefreq>monthly</changefreq></url>`
+      ),
+    ];
+
+    res.header("Content-Type", "application/xml");
+    res.send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join(
+        "\n"
+      )}\n</urlset>`
+    );
+  })
+);
+
 // ---------- serve React build ----------
 
 const buildPath = path.join(__dirname, "..", "frontend", "build");

@@ -5,15 +5,16 @@ const parser = new Parser({ timeout: 10000 });
 
 // Keywords tied to Manofox's services — edit this list any time to change what gets fetched.
 const TOPICS = [
-  { keyword: "digital marketing trends", category: "Digital Marketing" },
-  { keyword: "social media marketing", category: "Social Media" },
-  { keyword: "SEO trends", category: "SEO" },
-  { keyword: "Meta ads Facebook Instagram advertising", category: "Paid Ads" },
-  { keyword: "web development trends", category: "Web Development" },
-  { keyword: "branding design trends", category: "Branding" },
+  { keyword: "digital marketing trends", category: "Digital Marketing", imageQuery: "digital marketing" },
+  { keyword: "social media marketing", category: "Social Media", imageQuery: "social media" },
+  { keyword: "SEO trends", category: "SEO", imageQuery: "seo analytics" },
+  { keyword: "Meta ads Facebook Instagram advertising", category: "Paid Ads", imageQuery: "online advertising" },
+  { keyword: "web development trends", category: "Web Development", imageQuery: "web development coding" },
+  { keyword: "branding design trends", category: "Branding", imageQuery: "brand design" },
 ];
 
 const MAX_PER_TOPIC = 2;
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
 function slugify(title) {
   return (
@@ -27,23 +28,64 @@ function slugify(title) {
   );
 }
 
-async function extractImage(url) {
+// Rewrite a news item into original Manofox-voiced copy using Groq. Falls back to the
+// raw RSS snippet if GROQ_API_KEY isn't set or the request fails, so the pipeline never breaks.
+async function rewriteWithGroq({ title, snippet, category }) {
+  if (!process.env.GROQ_API_KEY) return null;
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    const resp = await fetch(url, {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; ManofoxBot/1.0)" },
+    const prompt = `You are a copywriter for Manofox, a digital marketing agency in New Delhi. Rewrite the following news item in your own words as a short blog post for the Manofox website. Do not copy sentences verbatim from the source. Keep it factual and neutral, written for a marketing-savvy business audience. Category: ${category}.
+
+Source headline: ${title}
+Source snippet: ${snippet}
+
+Respond ONLY with strict JSON, no markdown fences, no preamble:
+{"title": "a punchy rewritten headline under 90 characters", "summary": "a 1-2 sentence teaser under 200 characters", "content": "a 3-5 paragraph rewritten article, plain text, paragraphs separated by \\n\\n"}`;
+
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.6,
+        max_tokens: 900,
+      }),
     });
-    clearTimeout(timeout);
     if (!resp.ok) return null;
-    const html = await resp.text();
-    const og =
-      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
-      html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
-    return og ? og[1] : null;
+    const data = await resp.json();
+    const raw = data.choices?.[0]?.message?.content?.trim();
+    if (!raw) return null;
+    const cleaned = raw.replace(/^```json\s*|^```\s*|```$/g, "");
+    const parsed = JSON.parse(cleaned);
+    if (!parsed.title || !parsed.content) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+// Pull a relevant, licensed photo from Unsplash. Returns null (never blocks the post) on failure.
+async function fetchUnsplashImage(query) {
+  if (!process.env.UNSPLASH_ACCESS_KEY) return null;
+  try {
+    const resp = await fetch(
+      `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&orientation=landscape`,
+      { headers: { Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}` } }
+    );
+    if (!resp.ok) return null;
+    const photo = await resp.json();
+    if (!photo?.urls?.regular) return null;
+    // Unsplash API guidelines require attributing the photographer.
+    return {
+      url: photo.urls.regular,
+      credit: photo.user?.name ? `Photo by ${photo.user.name} on Unsplash` : "Photo via Unsplash",
+      creditUrl: photo.user?.links?.html
+        ? `${photo.user.links.html}?utm_source=manofox&utm_medium=referral`
+        : "https://unsplash.com",
+    };
   } catch {
     return null;
   }
@@ -70,20 +112,32 @@ async function fetchAndStoreNews() {
         ]);
         if (existing.length) continue;
 
-        const image = await extractImage(sourceUrl);
-        const title = (item.title || "Untitled").replace(/\s*-\s*[^-]+$/, "").trim();
-        const summary = (item.contentSnippet || item.content || "").slice(0, 500);
+        const rawTitle = (item.title || "Untitled").replace(/\s*-\s*[^-]+$/, "").trim();
+        const rawSnippet = (item.contentSnippet || item.content || "").slice(0, 800);
         const sourceName = item.creator || (feed.title || "").replace("Google News", "").trim() || "News";
 
+        const rewritten = await rewriteWithGroq({
+          title: rawTitle,
+          snippet: rawSnippet,
+          category: topic.category,
+        });
+        const image = await fetchUnsplashImage(topic.imageQuery);
+
+        const title = rewritten?.title || rawTitle;
+        const summary = rewritten?.summary || rawSnippet.slice(0, 300);
+        const content = rewritten?.content || rawSnippet;
+
         await pool.query(
-          `INSERT INTO blogs (title, slug, summary, content, image_url, source_url, source_name, category, status, is_automated, published_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'published', 1, ?)`,
+          `INSERT INTO blogs (title, slug, summary, content, image_url, image_credit, image_credit_url, source_url, source_name, category, status, is_automated, published_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', 1, ?)`,
           [
             title.slice(0, 255),
             slugify(title),
             summary,
-            summary,
-            image,
+            content,
+            image?.url || null,
+            image?.credit || null,
+            image?.creditUrl || null,
             sourceUrl,
             sourceName.slice(0, 150),
             topic.category,

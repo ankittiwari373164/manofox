@@ -1,27 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, ExternalLink } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { MaskedLines, FadeIn, Overline } from "@/components/marketing/Reveal";
 import api from "@/lib/api";
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function PostLink({ post, children, className }) {
-  // Auto-fetched news posts link out to the original source; manual posts open the internal detail page.
-  if (post.source_url) {
-    return (
-      <a href={post.source_url} target="_blank" rel="noreferrer" className={className} data-testid={`blog-link-${post.slug}`}>
-        {children}
-      </a>
-    );
-  }
-  return (
-    <Link to={`/blog/${post.slug}`} className={className} data-testid={`blog-link-${post.slug}`}>
-      {children}
-    </Link>
-  );
 }
 
 export default function Blog() {
@@ -70,9 +54,10 @@ export default function Blog() {
         ) : (
           <>
             <FadeIn>
-              <PostLink
-                post={featured}
+              <Link
+                to={`/blog/${featured.slug}`}
                 className="group grid gap-8 overflow-hidden rounded-3xl border border-black/5 bg-white shadow-sm transition-shadow duration-300 hover:shadow-xl lg:grid-cols-2"
+                data-testid={`blog-link-${featured.slug}`}
               >
                 <div data-testid="blog-featured">
                   {featured.image_url ? (
@@ -91,27 +76,22 @@ export default function Blog() {
                     {featured.title}
                   </h2>
                   <p className="mt-4 leading-relaxed text-neutral-600">{featured.summary}</p>
-                  <p className="mt-8 text-sm font-semibold text-neutral-400">
-                    {formatDate(featured.published_at)} {featured.source_name ? `· ${featured.source_name}` : ""}
-                  </p>
+                  <p className="mt-8 text-sm font-semibold text-neutral-400">{formatDate(featured.published_at)}</p>
                   <span className="mt-6 inline-flex items-center gap-2 font-semibold text-fox">
-                    {featured.source_url ? "Read full article" : "Read the article"}
-                    {featured.source_url ? (
-                      <ExternalLink className="h-4 w-4" />
-                    ) : (
-                      <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                    )}
+                    Read the article
+                    <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </span>
                 </div>
-              </PostLink>
+              </Link>
             </FadeIn>
 
             <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {rest.map((post, i) => (
                 <FadeIn key={post.slug} delay={(i % 3) * 0.07}>
-                  <PostLink
-                    post={post}
+                  <Link
+                    to={`/blog/${post.slug}`}
                     className="group flex h-full flex-col overflow-hidden rounded-3xl border border-black/5 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                    data-testid={`blog-link-${post.slug}`}
                   >
                     <article data-testid={`blog-card-${post.slug}`} className="flex h-full flex-col">
                       {post.image_url ? (
@@ -130,12 +110,12 @@ export default function Blog() {
                         <div className="mt-6 flex items-center justify-between border-t border-black/5 pt-4">
                           <span className="text-xs font-semibold text-neutral-400">{formatDate(post.published_at)}</span>
                           <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-fox">
-                            Read {post.source_url ? <ExternalLink className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />}
+                            Read <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                           </span>
                         </div>
                       </div>
                     </article>
-                  </PostLink>
+                  </Link>
                 </FadeIn>
               ))}
             </div>
