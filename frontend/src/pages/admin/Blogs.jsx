@@ -38,7 +38,11 @@ export default function Blogs() {
     setFetching(true);
     try {
       const { data } = await api.post("/admin/blogs/fetch-news");
-      toast.success(data.message || "News fetched");
+      if (data.errors?.length) {
+        toast.error(`${data.message}. Errors: ${data.errors.slice(0, 2).join(" | ")}`);
+      } else {
+        toast.success(data.message || "News fetched");
+      }
       fetchPosts();
     } catch (err) {
       toast.error(formatApiError(err));

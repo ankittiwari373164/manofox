@@ -366,6 +366,7 @@ api.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const result = await fetchAndStoreNews();
+    if (result.errors?.length) console.error("[blogs/fetch-news] errors:", result.errors);
     res.json({ message: `Fetched ${result.inserted} new post(s)`, ...result });
   })
 );
