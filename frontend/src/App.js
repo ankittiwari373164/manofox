@@ -13,7 +13,10 @@ import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminLayout from "@/pages/admin/AdminLayout";
 import Dashboard from "@/pages/admin/Dashboard";
 import Leads from "@/pages/admin/Leads";
+import Blogs from "@/pages/admin/Blogs";
+import Newsletter from "@/pages/admin/Newsletter";
 import ContentEditor from "@/pages/admin/ContentEditor";
+import BlogPost from "@/pages/BlogPost";
 
 function App() {
   return (
@@ -27,12 +30,15 @@ function App() {
               <Route path="/about" element={<About />} />
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:slug" element={<BlogPost />} />
               <Route path="/contact" element={<Contact />} />
             </Route>
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Dashboard />} />
               <Route path="leads" element={<Leads />} />
+              <Route path="blogs" element={<Blogs />} />
+              <Route path="newsletter" element={<Newsletter />} />
               <Route path="content" element={<ContentEditor />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
