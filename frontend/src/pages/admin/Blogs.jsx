@@ -40,15 +40,40 @@ export default function Blogs() {
     setFetching(true);
     try {
       const { data } = await api.post("/admin/blogs/fetch-news");
-      if (data.errors?.length) {
-        toast.error(`${data.message}. Errors: ${data.errors.slice(0, 2).join(" | ")}`);
-      } else {
-        toast.success(data.message || "News fetched");
+      if (data.running) {
+        toast.info(data.message);
+        setFetching(false);
+        return;
       }
-      fetchPosts();
+      toast.info(data.message || "Fetching started…");
+
+      const poll = setInterval(async () => {
+        try {
+          const { data: status } = await api.get("/admin/blogs/fetch-status");
+          if (!status.running && status.lastResult) {
+            clearInterval(poll);
+            setFetching(false);
+            const r = status.lastResult;
+            if (r.errors?.length) {
+              toast.error(`Fetched ${r.inserted} post(s). Errors: ${r.errors.slice(0, 2).join(" | ")}`);
+            } else {
+              toast.success(`Fetched ${r.inserted} new post(s)`);
+            }
+            fetchPosts();
+          }
+        } catch {
+          // ignore transient poll errors
+        }
+      }, 5000);
+
+      // Safety timeout so the button doesn't spin forever if something goes wrong.
+      setTimeout(() => {
+        clearInterval(poll);
+        setFetching(false);
+        fetchPosts();
+      }, 3 * 60 * 1000);
     } catch (err) {
       toast.error(formatApiError(err));
-    } finally {
       setFetching(false);
     }
   };

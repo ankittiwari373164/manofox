@@ -370,14 +370,35 @@ api.delete(
   })
 );
 
+let fetchJobStatus = { running: false, lastResult: null, lastRunAt: null };
+
 api.post(
   "/admin/blogs/fetch-news",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const result = await fetchAndStoreNews();
-    if (result.errors?.length) console.error("[blogs/fetch-news] errors:", result.errors);
-    res.json({ message: `Fetched ${result.inserted} new post(s)`, ...result });
+    if (fetchJobStatus.running) {
+      return res.json({ message: "A fetch is already running — check back in a minute.", running: true });
+    }
+    fetchJobStatus.running = true;
+    res.json({ message: "Fetching started in the background — refresh this page in about a minute.", started: true });
+
+    fetchAndStoreNews()
+      .then((result) => {
+        fetchJobStatus = { running: false, lastResult: result, lastRunAt: new Date() };
+        if (result.errors?.length) console.error("[blogs/fetch-news] errors:", result.errors);
+        console.log(`[blogs/fetch-news] Done — inserted ${result.inserted}`);
+      })
+      .catch((err) => {
+        fetchJobStatus = { running: false, lastResult: { inserted: 0, errors: [err.message] }, lastRunAt: new Date() };
+        console.error("[blogs/fetch-news] Job failed:", err.message);
+      });
   })
+);
+
+api.get(
+  "/admin/blogs/fetch-status",
+  requireAuth,
+  (req, res) => res.json(fetchJobStatus)
 );
 
 // ---------- newsletter (admin) ----------

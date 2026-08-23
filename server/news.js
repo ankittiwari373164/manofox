@@ -89,7 +89,8 @@ Respond ONLY with strict JSON, no markdown fences, no preamble:
         model: GROQ_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.6,
-        max_tokens: 2200,
+        max_tokens: 3000,
+        response_format: { type: "json_object" },
       }),
     });
     if (resp.status === 429 && attempt <= 3) {
@@ -106,8 +107,11 @@ Respond ONLY with strict JSON, no markdown fences, no preamble:
     const data = await resp.json();
     const raw = data.choices?.[0]?.message?.content?.trim();
     if (!raw) return null;
+    // Strip markdown fences and grab the outermost {...} block in case of stray text around it.
     const cleaned = raw.replace(/^```json\s*|^```\s*|```$/g, "");
-    const parsed = JSON.parse(cleaned);
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
     if (!parsed.title || !parsed.content) return null;
     return parsed;
   } catch (err) {
