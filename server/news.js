@@ -14,7 +14,7 @@ const TOPICS = [
 ];
 
 const MAX_PER_TOPIC = 2;
-const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 
 function baseSlug(title) {
   return title
@@ -68,10 +68,10 @@ async function extractArticleText(url) {
 
 // Rewrite a news item into original Manofox-voiced copy using Groq. Falls back to the
 // scraped/raw text if GROQ_API_KEY isn't set or the request fails, so the pipeline never breaks.
-async function rewriteWithGroq({ title, sourceText, category }) {
+async function rewriteWithGroq({ title, sourceText, category }, attempt = 1) {
   if (!process.env.GROQ_API_KEY) return null;
   try {
-    const prompt = `You are a copywriter for Manofox, a digital marketing agency in New Delhi. Write an original, in-depth blog post for the Manofox website based on the news article below. Do not copy sentences verbatim from the source — rewrite everything in your own words and add relevant context, implications for businesses, and practical takeaways. Keep it factual and neutral, written for a marketing-savvy business audience. Category: ${category}.
+    const prompt = `You are a copywriter for Manofox, a digital marketing agency in New Delhi. Write an original, in-depth blog post for the Manofox website based on the news article below. Do not copy sentences verbatim from the source — rewrite everything in your own words and add relevant context, implications for businesses, and practical takeaways. If the source text is very short, use your own knowledge of the topic to expand into a genuinely useful, substantive article rather than staying thin. Keep it factual and neutral, written for a marketing-savvy business audience. Category: ${category}.
 
 Source headline: ${title}
 Source article text: ${sourceText}
@@ -92,6 +92,12 @@ Respond ONLY with strict JSON, no markdown fences, no preamble:
         max_tokens: 2200,
       }),
     });
+    if (resp.status === 429 && attempt <= 3) {
+      const retryAfter = Number(resp.headers.get("retry-after")) || attempt * 5;
+      console.warn(`[news] Groq rate-limited, retrying in ${retryAfter}s (attempt ${attempt})`);
+      await new Promise((r) => setTimeout(r, retryAfter * 1000));
+      return rewriteWithGroq({ title, sourceText, category }, attempt + 1);
+    }
     if (!resp.ok) {
       const errBody = await resp.text().catch(() => "");
       console.error(`[news] Groq API error ${resp.status}: ${errBody.slice(0, 300)}`);
@@ -199,6 +205,7 @@ async function fetchAndStoreNews() {
           ]
         );
         inserted++;
+        await new Promise((r) => setTimeout(r, 1500));
       }
     } catch (err) {
       errors.push(`${topic.keyword}: ${err.message}`);
