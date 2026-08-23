@@ -17,6 +17,8 @@ export default function Blogs() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -74,6 +76,20 @@ export default function Blogs() {
     }
   };
 
+  const clearAllAutomated = async () => {
+    setClearing(true);
+    try {
+      const { data } = await api.delete("/admin/blogs");
+      toast.success(data.message);
+      fetchPosts();
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setClearing(false);
+      setConfirmClearAll(false);
+    }
+  };
+
   const submitForm = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -100,6 +116,13 @@ export default function Blogs() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setConfirmClearAll(true)}
+            data-testid="blog-clear-all-button"
+            className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-5 py-2.5 text-sm font-semibold text-red-500 transition-colors duration-200 hover:border-red-400 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4" /> Clear Auto-fetched
+          </button>
           <button
             onClick={() => setShowForm(true)}
             data-testid="blog-new-post-button"
@@ -276,6 +299,29 @@ export default function Blogs() {
             <AlertDialogCancel data-testid="delete-blog-cancel">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600" data-testid="delete-blog-confirm">
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmClearAll} onOpenChange={setConfirmClearAll}>
+        <AlertDialogContent data-testid="clear-all-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all auto-fetched posts?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes every post that was fetched automatically (manually-added posts are kept). Useful for
+              clearing out old posts created before the AI rewrite was enabled. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="clear-all-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={clearAllAutomated}
+              disabled={clearing}
+              className="bg-red-500 hover:bg-red-600"
+              data-testid="clear-all-confirm"
+            >
+              {clearing ? "Clearing…" : "Clear All"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

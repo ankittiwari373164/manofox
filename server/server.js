@@ -361,6 +361,15 @@ api.delete(
   })
 );
 
+api.delete(
+  "/admin/blogs",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const [result] = await pool.query("DELETE FROM blogs WHERE is_automated = 1");
+    res.json({ message: `Removed ${result.affectedRows} auto-fetched post(s)` });
+  })
+);
+
 api.post(
   "/admin/blogs/fetch-news",
   requireAuth,
