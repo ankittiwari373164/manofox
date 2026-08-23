@@ -122,15 +122,25 @@ Respond ONLY with strict JSON, no markdown fences, no preamble:
 
 // Pull a relevant, licensed photo from Unsplash. Returns null (never blocks the post) on failure.
 async function fetchUnsplashImage(query) {
-  if (!process.env.UNSPLASH_ACCESS_KEY) return null;
+  if (!process.env.UNSPLASH_ACCESS_KEY) {
+    console.warn("[news] UNSPLASH_ACCESS_KEY not set — skipping image.");
+    return null;
+  }
   try {
     const resp = await fetch(
       `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&orientation=landscape`,
       { headers: { Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}` } }
     );
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      const errBody = await resp.text().catch(() => "");
+      console.error(`[news] Unsplash API error ${resp.status}: ${errBody.slice(0, 300)}`);
+      return null;
+    }
     const photo = await resp.json();
-    if (!photo?.urls?.regular) return null;
+    if (!photo?.urls?.regular) {
+      console.error("[news] Unsplash response missing urls.regular:", JSON.stringify(photo).slice(0, 300));
+      return null;
+    }
     return {
       url: photo.urls.regular,
       credit: photo.user?.name ? `Photo by ${photo.user.name} on Unsplash` : "Photo via Unsplash",
@@ -138,7 +148,8 @@ async function fetchUnsplashImage(query) {
         ? `${photo.user.links.html}?utm_source=manofox&utm_medium=referral`
         : "https://unsplash.com",
     };
-  } catch {
+  } catch (err) {
+    console.error("[news] Unsplash fetch threw:", err.message);
     return null;
   }
 }
