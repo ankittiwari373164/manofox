@@ -8,6 +8,7 @@ const jwt = require("jsonwebtoken");
 const cron = require("node-cron");
 const pool = require("./db");
 const { fetchAndStoreNews } = require("./news");
+const { mountContent, mountRendering } = require("./seo-hub");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -422,6 +423,7 @@ api.delete(
   })
 );
 
+mountContent(app, express, pool, DEFAULT_CONTENT);
 app.use("/api", api);
 
 // generic API error handler
@@ -463,10 +465,7 @@ app.get(
 // ---------- serve React build ----------
 
 const buildPath = path.join(__dirname, "..", "frontend", "build");
-app.use(express.static(buildPath));
-app.get("*", (req, res) => {
-  res.sendFile(path.join(buildPath, "index.html"));
-});
+mountRendering(app, express, buildPath);
 
 // ---------- startup: ensure tables + seed admin ----------
 
