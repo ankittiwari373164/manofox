@@ -17,12 +17,14 @@ import Blogs from "@/pages/admin/Blogs";
 import Newsletter from "@/pages/admin/Newsletter";
 import ContentEditor from "@/pages/admin/ContentEditor";
 import BlogPost from "@/pages/BlogPost";
+import SeoMetadata from "@/components/SeoMetadata";
 
 function App() {
   return (
     <div className="App">
       <AuthProvider>
         <BrowserRouter>
+          <SeoMetadata />
           <Routes>
             <Route element={<MarketingLayout />}>
               <Route path="/" element={<Home />} />
