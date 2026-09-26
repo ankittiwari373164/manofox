@@ -8,9 +8,47 @@
     <meta name="theme-color" content="#1447e6" />
     <meta name="description" content="Manofox — Award-winning digital marketing agency in New Delhi." />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <meta name="rankpilot-verification" content="ug2q-bju71izSCBPKon8dpGK6tfOs6oN">
     <title>Manofox — Digital Marketing Agency</title>
+    
+    <!-- RankPilot Configuration -->
+    <script>
+      window.rankpilotConfig = {
+        manifestUrl: 'https://rankpilot-1881.onrender.com/connector/v1/ab93e415-9acf-408f-939f-f968139ca04d/manifest',
+        authToken: 'pYOGh2-d4_t2kp9JMDAjkUs5jkkzcPqKt3Ob2Ixzls_Jp6N8',
+        siteId: '9VwgBQvFwbbXtfnFmVEpXZWJ',
+        consent: 'required'
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- RankPilot Tracking Script -->
+    <script defer src="https://rankpilot-1881.onrender.com/connector.js" data-site="9VwgBQvFwbbXtfnFmVEpXZWJ" data-consent="required"></script>
+    
+    <!-- RankPilot Manifest Request -->
+    <script defer>
+      (function() {
+        const config = window.rankpilotConfig;
+        
+        // Fetch manifest with authorization header
+        fetch(config.manifestUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + config.authToken,
+            'Content-Type': 'application/json'
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log('RankPilot manifest loaded:', data);
+          window.rankpilotManifest = data;
+        })
+        .catch(error => {
+          console.error('RankPilot manifest fetch error:', error);
+        });
+      })();
+    </script>
   </body>
 </html>
